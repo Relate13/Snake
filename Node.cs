@@ -5,9 +5,9 @@ public class Player : Spatial
     private Vector3 _velocity;
 
     private Spatial Body;
-    public Player FollowingTarget;
     public float FollowingDistance = 1.3f;
-    
+    public Player FollowingTarget;
+
     [Export] public float Speed = 20;
 
     public override void _Ready()
@@ -28,7 +28,6 @@ public class Player : Spatial
 
     private void _PlayerControl(float delta)
     {
-
         if (Input.IsActionPressed("ui_up")) _velocity.x += 1;
         if (Input.IsActionPressed("ui_down")) _velocity.x -= 1;
         if (Input.IsActionPressed("ui_left")) _velocity.z -= 1;
@@ -38,17 +37,17 @@ public class Player : Spatial
 
         Translation += _velocity * delta;
 
-        Body.LookAt(Translation + _velocity * 10f , Vector3.Up);
+        Body.LookAt(Translation + _velocity * 10f, Vector3.Up);
     }
 
     private void _FollowTarget(float delta)
     {
         if (FollowingTarget == null) return;
-        
+
         if (FollowingTarget.Translation.DistanceTo(Translation) < FollowingDistance) return;
-        
-        Vector3 targetPos = FollowingTarget.Translation;
-        Vector3 direction = targetPos - Translation;
+
+        var targetPos = FollowingTarget.Translation;
+        var direction = targetPos - Translation;
         _velocity = direction.Normalized() * Speed;
 
         Translation += _velocity * delta;
