@@ -4,10 +4,14 @@ public class Snake : Spatial
 {
     private Timer _updateTimer;
 
+    public bool Dead;
+    public Vector2 GameBounds = new Vector2(60, 70);
+    public float LeviatateBiasIncrement = 50f;
+
     public SnakeNode SnakeHead;
-    public SnakeNode SnakeTail;
-    
+
     [Export] public PackedScene SnakeNodeScene;
+    public SnakeNode SnakeTail;
     [Export] public float UpdateInterval = 0.1f;
 
     public override void _Ready()
@@ -17,33 +21,47 @@ public class Snake : Spatial
         _updateTimer.Start();
 
         var head = SnakeNodeScene.Instance() as SnakeNode;
-        
+
         // Log error if head is null
-        if(head == null) GD.PrintErr("Head is null");
-        
-        head.Translation = new Vector3(0, 1, 0);
+        if (head == null) GD.PrintErr("Head is null");
+
+        head.Translation = new Vector3(0, 0, 0);
         AddChild(head);
 
         SnakeHead = head;
         SnakeTail = head;
 
         _updateTimer.Connect("timeout", this, nameof(OnUpdateTimerTimeout));
-    }
-    
-    public void AddNode()
-    {
-        var node = SnakeNodeScene.Instance() as SnakeNode;
-        node.Translation = SnakeTail.Translation;
-        node.Prev = SnakeTail;
-        node.TargetPosition = SnakeTail.Translation;
-        SnakeTail.Next = node;
-        SnakeTail = node;
-        AddChild(node);
+        SnakeHead.Connect(nameof(SnakeNode.SelfCollision), this, nameof(OnSnakeNodeSelfCollision));
+        SnakeHead.Connect(nameof(SnakeNode.FoodEaten), this, nameof(AddNode));
     }
 
     public override void _Process(float delta)
     {
-        if (Input.IsActionJustPressed("ui_select")) AddNode();
+        //check out of bounds
+        if (Dead) return;
+
+        if (Mathf.Abs(SnakeHead.Translation.x) > GameBounds.x / 2 ||
+            Mathf.Abs(SnakeHead.Translation.z) > GameBounds.y / 2)
+        {
+            GD.Print("Game Over : Out of bounds");
+            Die();
+        }
+    }
+
+    public void AddNode()
+    {
+        var node = SnakeNodeScene.Instance() as SnakeNode;
+        node.Translation = SnakeTail.IsHead
+            ? SnakeTail.Translation
+            : 2 * SnakeTail.Translation - SnakeTail.Prev.Translation;
+        node.Prev = SnakeTail;
+        node.TargetPosition = SnakeTail.Translation;
+        node.LevitateBias = SnakeTail.LevitateBias + LeviatateBiasIncrement;
+
+        SnakeTail.Next = node;
+        SnakeTail = node;
+        AddChild(node);
     }
 
     public void OnUpdateTimerTimeout()
@@ -59,9 +77,32 @@ public class Snake : Spatial
         {
             var next = current.Next;
             (next.TargetPosition, currentPos) = (currentPos, next.TargetPosition);
-            
+
             current = next;
             current.Speed = current.Translation.DistanceTo(current.TargetPosition) / UpdateInterval;
         }
+    }
+
+    public void OnSnakeNodeSelfCollision()
+    {
+        GD.Print("Game Over : Self Collision");
+        Die();
+    }
+
+    private void StopSnake()
+    {
+        _updateTimer.Stop();
+        var curr = SnakeHead;
+        while (curr != null)
+        {
+            curr.Stopped = true;
+            curr = curr.Next;
+        }
+    }
+
+    private void Die()
+    {
+        Dead = true;
+        StopSnake();
     }
 }
