@@ -12,9 +12,11 @@ public class SnakeNode : Area
     private Vector3 _velocity = Vector3.Forward;
     public float LevitateBias = 0;
     public SnakeNode Next;
+    [Export] public PackedScene Particle;
     public SnakeNode Prev;
 
     [Export] public float Speed = 10;
+
     public bool Stopped = false;
     public Vector3 TargetPosition;
 
@@ -85,6 +87,26 @@ public class SnakeNode : Area
             GD.Print("Area is food");
             EmitSignal(nameof(FoodEaten));
             food.OnFoodEaten();
+        }
+    }
+
+    public void SummonDeathEffect()
+    {
+        for (var i = 0; i < 3; ++i)
+        {
+            var velocity = new Vector3(
+                (float)GD.RandRange(-1, 1),
+                (float)GD.RandRange(0, 1),
+                (float)GD.RandRange(-1, 1)
+            ).Normalized();
+
+            var particle = Particle.Instance() as Particle;
+
+            particle.Translation = Translation;
+            particle.Rotation = Rotation;
+            particle.Velocity = velocity;
+
+            GetParent().AddChild(particle);
         }
     }
 }

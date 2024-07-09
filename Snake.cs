@@ -2,9 +2,19 @@ using Godot;
 
 public class Snake : Spatial
 {
+    [Signal]
+    public delegate void FoodEaten();
+
+    [Signal]
+    public delegate int SnakeDie();
+
+    private Timer _deathAnimationTimer;
+
+    private int _snakeLength;
     private Timer _updateTimer;
 
-    public bool Dead;
+    public bool Dead = true;
+    [Export] public float DeathAnimationInterval = 0.1f;
     public Vector2 GameBounds = new Vector2(60, 70);
     public float LeviatateBiasIncrement = 50f;
 
@@ -20,20 +30,11 @@ public class Snake : Spatial
         _updateTimer.WaitTime = UpdateInterval;
         _updateTimer.Start();
 
-        var head = SnakeNodeScene.Instance() as SnakeNode;
-
-        // Log error if head is null
-        if (head == null) GD.PrintErr("Head is null");
-
-        head.Translation = new Vector3(0, 0, 0);
-        AddChild(head);
-
-        SnakeHead = head;
-        SnakeTail = head;
+        _deathAnimationTimer = GetNode<Timer>("DeathAnimationTimer");
+        _updateTimer.WaitTime = DeathAnimationInterval;
 
         _updateTimer.Connect("timeout", this, nameof(OnUpdateTimerTimeout));
-        SnakeHead.Connect(nameof(SnakeNode.SelfCollision), this, nameof(OnSnakeNodeSelfCollision));
-        SnakeHead.Connect(nameof(SnakeNode.FoodEaten), this, nameof(AddNode));
+        _deathAnimationTimer.Connect("timeout", this, nameof(OnDeathAnimationTimer));
     }
 
     public override void _Process(float delta)
@@ -62,6 +63,9 @@ public class Snake : Spatial
         SnakeTail.Next = node;
         SnakeTail = node;
         AddChild(node);
+        _snakeLength++;
+
+        EmitSignal(nameof(FoodEaten));
     }
 
     public void OnUpdateTimerTimeout()
@@ -104,5 +108,47 @@ public class Snake : Spatial
     {
         Dead = true;
         StopSnake();
+        _deathAnimationTimer.Start();
+    }
+
+    private void OnDeathAnimationTimer()
+    {
+        // Implement death animation
+        if (SnakeHead == null)
+        {
+            SnakeTail = null;
+            _deathAnimationTimer.Stop();
+
+            EmitSignal(nameof(SnakeDie), _snakeLength);
+            return;
+        }
+
+        var curr = SnakeHead;
+        SnakeHead = SnakeHead.Next;
+        curr.SummonDeathEffect();
+        curr.QueueFree();
+    }
+
+    public void ResetSnake()
+    {
+        Translation = new Vector3(0, 0, 0);
+        while (SnakeHead != null)
+        {
+            SnakeHead.QueueFree();
+            SnakeHead = SnakeHead.Next;
+        }
+
+        SnakeHead = SnakeNodeScene.Instance() as SnakeNode;
+        SnakeTail = SnakeHead;
+        SnakeHead.Translation = new Vector3(0, 0, 0);
+
+        SnakeHead.Connect(nameof(SnakeNode.SelfCollision), this, nameof(OnSnakeNodeSelfCollision));
+        SnakeHead.Connect(nameof(SnakeNode.FoodEaten), this, nameof(AddNode));
+
+        _snakeLength = 1;
+
+        AddChild(SnakeHead);
+        Dead = false;
+        _updateTimer.Start();
     }
 }

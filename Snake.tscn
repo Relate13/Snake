@@ -8,3 +8,6 @@ script = ExtResource( 1 )
 SnakeNodeScene = ExtResource( 2 )
 
 [node name="UpdateTimer" type="Timer" parent="."]
+
+[node name="DeathAnimationTimer" type="Timer" parent="."]
+wait_time = 0.1
